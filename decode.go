@@ -47,7 +47,7 @@ func (d *decoder) readHeader() error {
 		return errors.New("bmp: unsupported DIB header")
 	}
 
-	if _, err := io.ReadFull(d.r, d.tmp[fileHeaderLen+4:dibLen]); err != nil {
+	if _, err := io.ReadFull(d.r, d.tmp[fileHeaderLen+4:fileHeaderLen+dibLen]); err != nil {
 		if err == io.EOF {
 			err = io.ErrUnexpectedEOF
 		}
@@ -83,7 +83,7 @@ func (d *decoder) readHeader() error {
 	}
 
 	offset := binary.LittleEndian.Uint32(d.tmp[10:14])
-	d.numColor = int(binary.LittleEndian.Uint32(d.tmp[50:54]))
+	d.numColor = int(binary.LittleEndian.Uint32(d.tmp[46:50]))
 
 	switch d.bpp {
 	case 1, 4, 8:
@@ -143,21 +143,28 @@ func (d *decoder) decodePalleted() error {
 
 	for y := y0; y != y1; y += dy {
 		// row data must be an integer multiple of 4 bytes
-		if _, err := io.ReadFull(d.r, d.tmp[:(d.width*d.bpp/8+3)&^3]); err != nil {
+		if _, err := io.ReadFull(d.r, d.tmp[:(d.width*d.bpp+31)/32*4]); err != nil {
 			if err == io.EOF {
 				return io.ErrUnexpectedEOF
 			}
 			return err
 		}
 
-		p := paletted.Pix[y*paletted.Stride : y*(paletted.Stride+1)]
+		p := paletted.Pix[y*paletted.Stride : (y+1)*paletted.Stride]
+
+		if d.width < 8/d.bpp {
+			for j := 0; j < d.width; j++ {
+				p[j] = (d.tmp[0] & (0xff &^ (0xff >> d.bpp) >> (d.bpp * j))) >> (8 - (d.bpp * (j + 1)))
+			}
+			continue
+		}
 
 		for i := 0; i < ((d.width+1)*d.bpp)/8; i++ {
 			// e.g. d.bpp = 4:
-			// j=0 => p[i*2] = d.tmp[i] & 0xf
-			// j=1 => p[i*2+1] = (d.tmp[i] & 0xf0) >> 4
+			// j=0 => p[i*2] = (d.tmp[i] & 0xf0) >> 4
+			// j=1 => p[i*2+1] = d.tmp[i] & 0xf
 			for j := 0; j < (8 / d.bpp); j++ {
-				p[i*2+j] = (d.tmp[i] & (((1 << d.bpp) - 1) << (d.bpp * j))) >> (d.bpp * j)
+				p[i*2+j] = (d.tmp[i] & (0xff &^ (0xff >> d.bpp) >> (d.bpp * j))) >> (8 - (d.bpp * (j + 1)))
 			}
 		}
 	}
@@ -183,7 +190,7 @@ func (d *decoder) decode16() error {
 			return err
 		}
 
-		p := rgba.Pix[y*rgba.Stride : y*(rgba.Stride+1)]
+		p := rgba.Pix[y*rgba.Stride : (y+1)*rgba.Stride]
 
 		for i, j := 0, 0; i < d.width*4; i, j = i+4, j+2 {
 			// BGR order
@@ -213,7 +220,7 @@ func (d *decoder) decode24() error {
 			return err
 		}
 
-		p := rgba.Pix[y*rgba.Stride : y*(rgba.Stride+1)]
+		p := rgba.Pix[y*rgba.Stride : (y+1)*rgba.Stride]
 
 		for i, j := 0, 0; i < d.width*4; i, j = i+4, j+3 {
 			// BGR order
@@ -236,7 +243,7 @@ func (d *decoder) decode32() error {
 	}
 
 	for y := y0; y != y1; y += dy {
-		p := rgba.Pix[y*rgba.Stride : y*(rgba.Stride+1)]
+		p := rgba.Pix[y*rgba.Stride : (y+1)*rgba.Stride]
 
 		if _, err := io.ReadFull(d.r, p[y*rgba.Stride:y*(rgba.Stride+1)]); err != nil {
 			if err == io.EOF {
