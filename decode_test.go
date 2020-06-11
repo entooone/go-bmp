@@ -24,7 +24,7 @@ func loadBMP(path string) (image.Image, error) {
 
 var expectedImages = map[string]image.Image{
 	"sample.bmp": &image.Paletted{
-		Pix: []uint8{1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0},
+		Pix: []uint8{0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0},
 		Palette: color.Palette{
 			color.RGBA{0x00, 0x00, 0x00, 0xff},
 			color.RGBA{0xff, 0xff, 0xff, 0xff},
