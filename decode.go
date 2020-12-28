@@ -88,11 +88,11 @@ func (d *decoder) readHeader() error {
 	switch d.bpp {
 	case 1, 4, 8:
 		if int(offset) != fileHeaderLen+int(dibLen)+d.numColor*4 {
-			return fmt.Errorf("bmp: incorrect offset (got: %d)", offset)
+			return fmt.Errorf("bmp: offset should be %d (got: %d)", fileHeaderLen+int(dibLen)+d.numColor*4, offset)
 		}
 	case 16, 24, 32:
 		if int(offset) != fileHeaderLen+int(dibLen) {
-			return fmt.Errorf("bmp: incorrect offset (got: %d)", offset)
+			return fmt.Errorf("bmp: offset should be %d (got: %d)", fileHeaderLen+int(dibLen), offset)
 		}
 	default:
 		return fmt.Errorf("bmp: unsupported the number of bits per pixel (got: %d)", d.bpp)
