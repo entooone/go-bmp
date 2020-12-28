@@ -2,7 +2,7 @@ package bmp
 
 import (
 	"encoding/binary"
-	"errors"
+	"fmt"
 	"image"
 	"image/color"
 	"io"
@@ -36,7 +36,7 @@ func (d *decoder) readHeader() error {
 	}
 
 	if string(d.tmp[:2]) != "BM" {
-		return errors.New("bmp: invalid format")
+		return fmt.Errorf("bmp: invalid file signature (got: %q)", d.tmp[:2])
 	}
 
 	dibLen := binary.LittleEndian.Uint32(d.tmp[fileHeaderLen : fileHeaderLen+4])
@@ -44,7 +44,7 @@ func (d *decoder) readHeader() error {
 	// support these DIB header length
 	case 40, 52, 60, 96, 108, 112, 120, 124:
 	default:
-		return errors.New("bmp: unsupported DIB header")
+		return fmt.Errorf("bmp: unsupported DIB header length (got: %d)", dibLen)
 	}
 
 	if _, err := io.ReadFull(d.r, d.tmp[fileHeaderLen+4:fileHeaderLen+dibLen]); err != nil {
@@ -62,8 +62,8 @@ func (d *decoder) readHeader() error {
 		d.height, d.topDown = -d.height, true
 	}
 
-	if d.width <= 0 || d.width == 0 {
-		return errors.New("bmp: width must be greater than zero and height must be non-zero")
+	if d.width <= 0 || d.height == 0 {
+		return fmt.Errorf("bmp: width must be greater than zero and height must be non-zero (width: %d, height: %d)", d.width, d.height)
 	}
 
 	d.bpp = int(binary.LittleEndian.Uint16(d.tmp[28:30]))
@@ -79,7 +79,7 @@ func (d *decoder) readHeader() error {
 	}
 
 	if compression != 0 {
-		return errors.New("bmp: unsupported commression method")
+		return fmt.Errorf("bmp: unsupported compression method (got: %d)", compression)
 	}
 
 	offset := binary.LittleEndian.Uint32(d.tmp[10:14])
@@ -88,14 +88,14 @@ func (d *decoder) readHeader() error {
 	switch d.bpp {
 	case 1, 4, 8:
 		if int(offset) != fileHeaderLen+int(dibLen)+d.numColor*4 {
-			return errors.New("bmp: incorrect offset")
+			return fmt.Errorf("bmp: incorrect offset (got: %d)", offset)
 		}
 	case 16, 24, 32:
 		if int(offset) != fileHeaderLen+int(dibLen) {
-			return errors.New("bmp: incorrect offset")
+			return fmt.Errorf("bmp: incorrect offset (got: %d)", offset)
 		}
 	default:
-		return errors.New("bmp: unsupported the number of bits poer pixel")
+		return fmt.Errorf("bmp: unsupported the number of bits per pixel (got: %d)", d.bpp)
 	}
 
 	return nil
